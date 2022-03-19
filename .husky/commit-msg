@@ -1,0 +1,96 @@
+#!/bin/sh
+. "$(dirname "$0")/_/husky.sh"
+
+# templete
+# 修改类型(必选 feat, fix, docs, style, refactor, refactor, pref, test, chore, revert, build, config):
+# 修改范围(可选):
+# 请简要描述提交(必填):
+# 请输入详细描述(可选):
+
+###--------------------------------------------------------###
+# feat(commit 规范): commit 脚本添加
+
+# 添加commit脚本工具
+
+# ISSUES CLOSED: n
+###--------------------------------------------------------###
+
+#private $0 line msg $1 index
+function get_pre_line_msg() {
+    line_msg=${1}
+    gap_string="):"
+    git_msg=${line_msg#*$gap_string}
+}
+line_num=0
+function joint_git_msg() {
+    full_git_msg=$full_git_msg$1','
+    line_num=$(($line_num + 1))
+}
+
+function replace_git_msg() {
+    if [ ! -f "$temp_commit_msg" ]; then
+        echo "error for create commit_msg.templete"
+        exit 1
+    fi
+    : >$commit_editmsg_path
+    full_git_msg_num=4
+    OLD_IFS="$IFS"
+    IFS=","
+    git_msg_array=($full_git_msg)
+    IFS="$OLD_IFS"
+    git_first_line=""
+    git_second_line=""
+    git_three_line="ISSUES CLOSED: n\n"
+    # first_flag="###--------------------------------------------------------###\n"
+    # last_flag="###--------------------------------------------------------###"
+    if [ "$line_num" == "$full_git_msg_num" ]; then
+        # 4
+        git_first_line="${git_msg_array[0]}(${git_msg_array[1]}): ${git_msg_array[2]}\n\n"
+        git_second_line="${git_msg_array[3]}\n\n"
+    else
+        # 3
+        git_first_line="${git_msg_array[0]}:${git_msg_array[1]}\n\n"
+        git_second_line="${git_msg_array[2]}\n\n"
+    fi
+    # full_git_msg=$first_flag$git_first_line$git_second_line$git_three_line$last_flag
+    full_git_msg=$git_first_line$git_second_line$git_three_line
+
+    echo $full_git_msg >$commit_editmsg_path
+}
+
+# get commit msg
+porject_path=$(pwd)
+commit_editmsg_path=$porject_path/$1
+temp_commit_msg=$porject_path/'commit_msg.templete'
+if [ ! -f "$temp_commit_msg" ]; then
+    touch "$temp_commit_msg"
+fi
+
+if [ ! -f "$commit_editmsg_path" ]; then
+    echo "不存在gitMessage"
+fi
+
+using_templeta="false"
+while read line; do
+    using_template_flag="# using_template"
+    if [ "$line" == "$using_template_flag" ]; then
+        using_templeta="true"
+        continue
+    fi
+    # check commit-msg
+    if [ ! "$using_templeta" = "true" ]; then
+        break
+    fi
+
+    # rebuild commit msg
+    get_pre_line_msg "$line"
+    joint_git_msg $git_msg
+done <$commit_editmsg_path
+
+if [ "$using_templeta" == "true" ]; then
+    # replace_git_msg $git_msg;
+    replace_git_msg $full_git_msg
+
+fi
+# check commit msg
+npx --no-install commitlint --edit "$1"
